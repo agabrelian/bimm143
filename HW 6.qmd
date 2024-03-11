@@ -1,0 +1,113 @@
+---
+title: "HW Class 6"
+author: "Ani A16647613"
+format: pdf
+---
+
+## Introduction to Bioinformatics: R functions
+
+## Section 1: Improving analysis code by writing functions
+
+Part A: Can you improve this analysis code?
+```{r}
+df <- data.frame(a=1:10, b=seq(200,400,length=10),c=11:20,d=NA) 
+df
+```
+
+```{r}
+df$a <- (df$a - min(df$a)) / (max(df$a) - min(df$a))
+df$b <- (df$b - min(df$a)) / (max(df$b) - min(df$b))
+df$c <- (df$c - min(df$c)) / (max(df$c) - min(df$c))
+df$d <- (df$d - min(df$d)) / (max(df$d) - min(df$d)) 
+```
+
+In order to ensure that the code is working properly (reduces errors in repeating codes with different values), we need to condense the codes above into one function.
+
+```{r}
+new_code <- function(column) {column <- (column-min(column))/(max(column) - min(column))}
+
+list_columns <- list(df$a, df$b, df$c, df$d) 
+
+list_columns
+
+```
+Part B: Can you improve this analysis code?
+```{r} 
+# The given code is below
+library(bio3d)
+s1 <- read.pdb("4AKE") # kinase with drug
+s2 <- read.pdb("1AKE") # kinase no drug
+s3 <- read.pdb("1E4Y") # kinase with drug
+
+s1.chainA <- trim.pdb(s1, chain="A", elety="CA")
+s2.chainA <- trim.pdb(s2, chain="A", elety="CA")
+s3.chainA <- trim.pdb(s3, chain="A", elety="CA")
+
+s1.b <- s1.chainA$atom$b
+s2.b <- s2.chainA$atom$b
+s3.b <- s3.chainA$atom$b
+
+plotb3(s1.b, sse=s1.chainA, typ="l", ylab="Bfactor")
+plotb3(s2.b, sse=s2.chainA, typ="l", ylab="Bfactor")
+plotb3(s3.b, sse=s3.chainA, typ="l", ylab="Bfactor")
+```
+
+The following is a potential improved code:
+```{r}
+library(bio3d)
+
+kinase_analysis <- function(kinase){
+  s <- read.pdb(kinase)
+  s.chainA <- trim.pdb(s, chain="A", elety="CA")
+  s.b <- s.chainA$atom$b
+  plotb3(s.b, sse=s3.chainA, typ="l", ylab="Bfactor")
+}
+
+kinase_list <- list("4AKE", "1AKE", "1E4Y")
+for (residue in kinase_list){
+  kinase_analysis(residue)
+}
+
+```
+
+> Q1. What type of object is returned from the read.pdb() function?
+
+It mentions that read.pdb() is accessing from an on-line PDB file.
+
+> Q2. What does the trim.pdb() function do?
+
+trim.pdb() essentially trims/cuts the overall online PDB file into subsets of data
+
+> Q3. What input parameter would turn off the marginal black and grey rectangles in the plots and what do they represent in this case?
+
+The marginal black and grey rectangles in the plot that represent the variability of clusters (secondary structures) can be turned off by the removal of `sse=s3.chainA`.
+
+> Q4. What would be a better plot to compare across the different proteins?
+
+To compare across different proteins, a bar plot could show better comparisons with each protein as a bar to make it more apparent and easier to visualize.
+
+> Q5. Which proteins are more similar to each other in their B-factor trends. How could you quantify this?
+
+```{r}
+hc <- hclust( dist(rbind(s1.b, s2.b, s3.b)))
+plot(hc)
+```
+The hcluster shows the similarity of the clusters based on the corresponding proteins. Based on the comparison of b.factors, proteins 2 and 3 are more similar to each other.
+
+> Q6. How would you generalize the original code above to work with any set of input protein structures?
+
+Based on the following code:
+
+kinase_analysis <- function(kinase){
+  s <- read.pdb(kinase)
+  s.chainA <- trim.pdb(s, chain="A", elety="CA")
+  s.b <- s.chainA$atom$b
+  plotb3(s.b, sse=s3.chainA, typ="l", ylab="Bfactor")
+}
+
+kinase_list <- list("4AKE", "1AKE", "1E4Y")
+for (residue in kinase_list){
+  kinase_analysis(residue)
+}
+
+
