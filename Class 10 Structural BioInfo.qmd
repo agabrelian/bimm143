@@ -1,0 +1,118 @@
+---
+title: "Class 10 Structural Bioinformatics"
+author: "Ani A16647613"
+format: pdf
+---
+
+# Section 1 Intro to RCSB Protein Data Bank
+
+Here we examine the size and composition of the main database of biomolecular structures- the PDB.
+
+```{r}
+pdbstats <- read.csv("datasummary.csv", row.names=1)
+head(pdbstats)
+```
+
+> Q1. What percentage of structures in the PDB are solved by X-ray and electron microscopy?
+
+My pdb stats data has numbers with commas in them which may cause problems. Testing it out:
+
+```{r}
+pdbstats$X.ray
+```
+```{r}
+as.numeric(pdbstats$X.ray)
+```
+
+Found a function called `gsub()` so now we figure out how it works
+
+```{r}
+x <- "49,234"
+sum(as.numeric(gsub(",", "", x)))
+```
+
+Can use this function for every column
+```{r}
+commasum <- function(x) {
+sum(as.numeric(gsub(",", "", x)))
+}
+
+commasum(pdbstats$X.ray)
+```
+
+```{r}
+totals <- apply(pdbstats,2,commasum)
+```
+
+
+```{r}
+round(totals/totals["Total"] * 100, 2)
+```
+With X.ray 84.54 percent and EM 8.72 percent
+```{r} 
+# Percentage of Xray and EM
+84.54 + 8.72
+```
+
+> Q2. What proportion of structures in the PDB are protein?
+
+```{r}
+proteintotal <- as.numeric(gsub(",", "", pdbstats[1,7]))
+
+round(proteintotal/totals["Total"] * 100, 2)
+
+```
+
+```{r}
+(215684/249751891 * 100)
+```
+
+# Section 2 Visualizing Protein Structure
+
+learning the basis of Mol* (mol-star)
+
+PDB code with 1HSG
+
+![](1HSG.png)
+
+PDB with Asp 25's showing
+
+![HIV-Pr with a bound inhibitor showing two crucial Asp 25 amino acids](1HSGAsp.png)
+
+# Predict the dynamics or flexibility of an important protein:
+
+```{r}
+library(bio3d)
+
+hiv <- read.pdb("1hsg")
+hiv
+```
+
+```{r}
+head(hiv$atom)
+```
+
+```{r}
+pdbseq(hiv)
+```
+
+Doing NMA:
+
+```{r}
+adk <- read.pdb("6s36")
+adk
+```
+
+```{r}
+modes <- nma(adk)
+plot(modes)
+```
+There are certain regions of the sequence that is more flexible.
+
+Make a "movie" called a trajectory to predict motions:
+```{r}
+mktrj(modes, file = "adk_m7.pdb")
+```
+
+Then we can open it in Mol*
+
