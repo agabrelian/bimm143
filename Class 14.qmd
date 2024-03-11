@@ -1,0 +1,178 @@
+---
+title: "Class 14 DESeq2 Mini Project"
+author: "Ani A16647613"
+format: pdf
+---
+
+## Differential Expression Analysis
+
+First (after downloading the GSE count and metadata sets), we will assign the datasets to distinctive values
+```{r}
+countFile <- "GSE37704_featurecounts.csv"
+metaFile <- "GSE37704_metadata.csv"
+```
+
+now we will import the metadata file and look:
+```{r}
+colData <- read.csv("GSE37704_metadata.csv", row.names=1)
+head(colData)
+```
+We can do the same for the count file
+```{r}
+countData = read.csv(countFile, row.names=1)
+head(countData)
+```
+
+To make the first columns line up, we need to remove the first column of the `countData` file:
+```{r}
+countData <- as.matrix(countData[,-1])
+head(countData)
+```
+Now we will implement a filter to exclude rows with gene counts of 0 across all the samples:
+```{r}
+to.keep.inds <- rowSums(countData) > 0
+nonzerocounts <- countData[to.keep.inds,]
+```
+
+```{r}
+head(nonzerocounts)
+```
+Now that we have cleared out the unnecessary data with zero values and the first column, we can begin to run DESeq2
+
+## Running DESeq2
+
+First we have to load DESeq2 onto our quarto document
+```{r}
+library(DESeq2)
+```
+To set up the necessary `DESEq()` function to run the pipeline, we have to use `DESeqDataSet`
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=countData,
+                            colData=colData,
+                            design=~condition)
+
+dds <- DESeq(dds)
+
+dds
+```
+We will be specifically looking into the knockdown HoxA1 (`hoxa1_kd`) and siRNA (`control_sirna`) from the colData file and use `resultNames(dds)` to observe the results:
+
+```{r}
+res = results(dds,
+            contrast=c("condition",
+                      "hoxa1_kd",
+                      "control_sirna"))
+
+summary(res)
+```
+With this data, we can create a **volcano plot** for visualization purposes:
+
+```{r}
+plot( res$log2FoldChange, -log(res$padj) )
+```
+
+For better visualization of the significant datapoints, we will add colors and axis labels (I wanted to change the colors to make it appear different from the example, but still show distinct separation)
+
+```{r}
+mycols <- rep("gray", nrow(res) )
+mycols[ abs(res$log2FoldChange) > 2 ] <- "green"
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "purple"
+
+plot( res$log2FoldChange, -log(res$padj), col=mycols, xlab="Log2(FoldChange)", ylab="-Log(P-value)" )
+```
+
+For my own purposes for understanding, I would like to add cutoff marks for better visualization of the volcano plot significant points shown above:
+
+```{r}
+plot( res$log2FoldChange, -log(res$padj), col=mycols, xlab="Log2(FoldChange)", ylab="-Log(P-value)" )
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+```
+To annotate the transfers and reorder pvalues to safe as a new file: 
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+
+columns(org.Hs.eg.db)
+
+res$symbol <- mapIds(org.Hs.eg.db,
+                     key=row.names(res),
+                     keytype="ENSEMBL",
+                     column="SYMBOL",
+                     multiVals="first")
+
+res$entrez <- mapIds(org.Hs.eg.db,
+                    keys=row.names(res),
+                    keytype="ENSEMBL",
+                    column="ENTREZID",
+                    multiVals="first")
+
+res$name <-  mapIds(org.Hs.eg.db,
+                    keys=row.names(res),
+                    keytype="ENSEMBL",
+                    column="GENENAME",
+                    multiVals="first")
+
+head(res, 10)
+```
+
+```{r}
+res <- res[order(res$pvalue),]
+write.csv(res, file = "deseq_results.csv")
+```
+
+
+## Pathway Analysis
+
+After downloading the KEGG packages, we can begin to work to establish a pathview of a metabolic pathway.
+
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+```
+
+Focusing on metabolic pathways:
+```{r}
+kegg.sets.hs <- kegg.sets.hs[sigmet.idx.hs]
+head(kegg.sets.hs, 3)
+```
+We should be able to map out the IDS of the Entrez genes to name the fold change vectors.
+```{r}
+foldchanges <- res$log2FoldChange
+names(foldchanges) <-  res$entrez
+head(foldchanges)
+```
+
+Observing the results with gage:
+```{r}
+keggres <- gage(foldchanges, gsets <- kegg.sets.hs, same.dir=TRUE)
+
+attributes(keggres)
+```
+```{r}
+str(keggres)
+```
+
+Looking at the down pathways signified by "less":
+```{r}
+head(keggres$less)
+```
+
+Now to visualize a specific pathway figure, I will focus in on `homologous recombination` with the pathway ID:
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa03440")
+```
+
+![](hsa03440.pathview.png)
+
+
+
+
+
