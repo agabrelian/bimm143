@@ -1,0 +1,241 @@
+---
+title: "Class 6: R functions"
+author: "Ani (A16647613)"
+date: 01/25/24
+format: pdf
+---
+
+## R Functions
+
+Functions are how we get stuff done. We call functions to do everything useful in R.
+
+One cool thing about R is that it makes writing your own functions comparatively easy.
+
+All functions in R have at least three things:
+
+- A **name** (we get to pick this)
+- One or more **input arguments** (the input to our function)
+- The **body** (lines of code that do the work)
+
+```{r}
+#| eval: false
+
+funname <- function(input1, input2) {
+  # The body with R code
+}
+```
+
+Let's write a silly first function to add two numbers:
+
+```{r}
+x <- 5
+y <- 1
+x + y
+```
+
+
+```{r myfun}
+addme <- function(x,y=1) {
+  x + y 
+}
+```
+
+
+```{r}
+addme(100,100)
+```
+
+```{r}
+addme(100)
+```
+
+## Lab for today
+
+
+```{r}
+# Example input vectors as a start
+
+student1 <- c(100,100,100,100,100,100,100,90)
+student2 <- c(100, NA, 90, 90, 90, 90, 97, 80)
+student3 <- c(90,NA,NA,NA,NA,NA,NA,NA)
+```
+
+# Question 1
+
+First finding the mean.
+```{r}
+mean(student1)
+mean(student2, na.rm= TRUE)
+mean(student3, na.rm= TRUE)
+```
+This isn't fair- there is no way student3 should have a mean of 90.
+
+Come back to this NA problem. But things worked for `student1`.
+
+We want to drop the lowest score before getting the `mean()`.
+
+How do I find the lowest (minimum) score?
+```{r}
+student1
+```
+
+```{r}
+min(student1)
+```
+
+I found the `which.min()` function. Maybe this is more useful?
+
+```{r}
+which.min(student1)
+```
+
+Cool - it is the eighth element of the vector that has the lowest score. Can I remove this one?
+
+```{r}
+student1[ which.min(student1) ]
+```
+
+Student1 grades with the lowest score dropped.
+```{r}
+student1[ -which.min(student1)]
+```
+
+Mean of student1's scores with the lowest score dropped.
+```{r}
+mean(student1[-which.min(student1)])
+```
+
+A more explicit way (as shown in class):
+```{r}
+# Find the lowest score
+ind <- which.min(student1)
+# Remove lowest score and find the mean
+mean(student1[-ind])
+```
+
+Use a common shortcut and use `x` as my input
+```{r}
+x <- student1
+mean(x[-which.min(x)])
+```
+
+We still have the problem of missing values.
+
+One idea is to replace NA values with zero.
+
+```{r}
+y <- 1:5
+y==3
+y[y==3]
+```
+```{r}
+y <- c(1,2,NA,4,5)
+y == NA
+```
+
+```{r}
+y
+is.na(y)
+```
+
+How can I remove the NA elements from the vector?
+I need to flip the TRUE element
+
+```{r}
+!c(F,F,F)
+#y[is.na(y)]
+```
+
+```{r}
+y[!is.na(y)]
+```
+
+```{r}
+y[is.na(y)] <- 10000
+y
+```
+
+Okay, let's solve this:
+
+
+
+Last step now that I have my working code snipped is to make my `grade()` function
+
+```{r}
+grade <- function(student1, student2, student3) {
+ x <- student1
+
+# Change NA values to 0
+x[is.na(x)] <- 0
+mean(x[-which.min(x)]) 
+}
+```
+
+```{r}
+grade(student1)
+grade(student2)
+grade(student3)
+```
+
+# Question 2: Who was the top scoring student?
+Now read the online gradebook (CSV file)
+
+```{r}
+url <- "https://tinyurl.com/gradeinput"
+gradebook <- read.csv(url, row.names = 1)
+
+head(gradebook)
+```
+
+```{r}
+results <- apply(gradebook, 1 ,grade)
+results
+```
+
+```{r}
+which.max(results)
+```
+# Question 3: Which homework was the toughest on students?
+
+```{r}
+hwresults <- apply(gradebook, 2, mean, na.rm = TRUE)
+hwresults
+```
+
+```{r}
+which.min(hwresults)
+```
+```{r}
+apply(gradebook, 2, sum, na.rm = TRUE)
+```
+
+
+# Question 4: Which homework was the most predictive (ie.highest correlation with average score)?
+
+```{r}
+# Make all NA to zero
+mask <- gradebook
+mask[is.na(mask)] <- 0
+#mask
+```
+
+We can use `cor()`function for correlation analysis.
+
+```{r}
+cor(gradebook$hw1, results)
+```
+This hw1 correlation indicates a relatively high correlation.
+
+```{r}
+cor(mask$hw5, results)
+```
+
+```{r}
+cor(mask$hw3, results)
+```
+
+apply(mask, 2, cor)
+```{r}
+apply(mask, 2, cor, results)
+```
+
