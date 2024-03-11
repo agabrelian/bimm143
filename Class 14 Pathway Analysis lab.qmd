@@ -1,0 +1,256 @@
+---
+title: "Class 14 Pathway Analysis"
+author: "Ani A16647613"
+format: pdf
+---
+
+## Differnetial Expression Analysis
+
+First we are going to download Biocmanager and DESeq2 packages in our console then add them to our library
+
+```{r}
+library(DESeq2)
+```
+
+Now to load our metadata and count files:
+```{r}
+metaFile <- "GSE37704_metadata.csv"
+countFile <- "GSE37704_featurecounts.csv"
+
+# Import metadata and take a peak
+colData <- read.csv(metaFile, row.names=1)
+head(colData)
+```
+
+```{r}
+# importing countdata
+countData = read.csv(countFile, row.names=1)
+head(countData)
+```
+```{r}
+# to remove the nonessential "length" column
+countData <- as.matrix(countData[,-1])
+head(countData)
+```
+```{r}
+# Now we will implement a filter to exclude rows with gene counts of 0 across all the samples:
+to.keep.inds <- rowSums(countData) > 0
+nonzerocounts <- countData[to.keep.inds,]
+```
+
+```{r}
+head(nonzerocounts)
+```
+Now that we have cleared out the unnecessary data with zero values and the first column, we can begin to run DESeq2
+
+## Running DESeq2
+
+We already have DESeq2 added to our library. To set up the necessary `DESEq()` function to run the pipeline, we have to use `DESeqDataSet`
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=countData,
+                            colData=colData,
+                            design=~condition)
+
+dds <- DESeq(dds)
+
+dds
+
+```
+We will be specifically looking into the knockdown HoxA1 (`hoxa1_kd`) and siRNA (`control_sirna`) from the colData file and use `resultNames(dds)` to observe the results:
+
+```{r}
+res = results(dds,
+            contrast=c("condition",
+                      "hoxa1_kd",
+                      "control_sirna"))
+
+summary(res)
+
+```
+
+With this data, we can create a **volcano plot** for visualization purposes:
+
+```{r}
+plot( res$log2FoldChange, -log(res$padj) )
+```
+
+For better visualization of the significant datapoints, we will add colors and axis labels (I wanted to change the colors to make it appear different from the example, but still show distinct separation)
+
+```{r}
+mycols <- rep("gray", nrow(res) )
+mycols[ abs(res$log2FoldChange) > 2 ] <- "green"
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "purple"
+
+plot( res$log2FoldChange, -log(res$padj), col=mycols, xlab="Log2(FoldChange)", ylab="-Log(P-value)" )
+
+```
+
+For my own purposes for understanding, I would like to add cutoff marks for better visualization of the volcano plot significant points shown above:
+
+```{r}
+plot( res$log2FoldChange, -log(res$padj), col=mycols, xlab="Log2(FoldChange)", ylab="-Log(P-value)" )
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+
+```
+
+To annotate the Entrz Gene IDs and reorder pvalues to safe as a new file:
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+
+columns(org.Hs.eg.db)
+```
+
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+keys=row.names(res),
+keytype="ENSEMBL",
+column="SYMBOL",
+multiVals="first")
+
+res$entrez <- mapIds(org.Hs.eg.db,
+keys=row.names(res),
+keytype="ENSEMBL",
+column="ENTREZID",
+multiVals="first")
+
+res$name <- mapIds(org.Hs.eg.db,
+keys=row.names(res),
+keytype="ENSEMBL",
+column="GENENAME",
+multiVals="first")
+
+head(res,10)
+```
+
+```{r}
+res <- res[order(res$pvalue),]
+write.csv(res, file = "deseq_results.csv")
+
+```
+
+## Pathway Analysis
+
+After downloading the KEGG packages, we can begin to work to establish a pathview of a biological pathway.
+
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+
+```
+
+Focusing on metabolic pathways:
+```{r}
+kegg.sets.hs <- kegg.sets.hs[sigmet.idx.hs]
+head(kegg.sets.hs, 3)
+
+```
+We should be able to map out the IDS of the Entrez genes to name the fold change vectors.
+```{r}
+foldchanges <- res$log2FoldChange
+names(foldchanges) <- res$entrez
+head(foldchanges)
+```
+
+Now to run the gage pathway analysis
+Here is how we can see the results:
+```{r}
+keggres <- gage(foldchanges, gsets = kegg.sets.hs)
+```
+
+```{r}
+attributes(keggres)
+```
+Now  we are gonna specifically look at the first few down pathways signified by `less`
+
+```{r}
+head(keggres$less)
+```
+
+We can use the pathway IDs to view the pathway figure: Let's look at Homologous Recombination for example!
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa03440")
+```
+
+![](hsa03440.pathview.png)
+
+Here's a different PDF based on outputs of the same data:
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa03440", kegg.native=FALSE)
+```
+To focus on the top 5 upregulated pathways without the long IDs of each sample: 
+```{r}
+keggrespathways <- rownames(keggres$greater)[1:5]
+
+keggresids <- substr(keggrespathways, start=1, stop=8)
+
+keggresids
+```
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id=keggresids, species="hsa")
+```
+
+![](hsa04740.pathview.png)
+
+![](hsa04640.pathview.png)
+
+![](hsa00140.pathview.png)
+
+![](hsa04630.pathview.png)
+
+![](hsa04976.pathview.png)
+
+## Gene Ontology (GO)
+
+This secion does a similar feature to the one previously but with gene ontology
+
+```{r}
+data(go.sets.hs)
+data(go.subs.hs)
+
+# Focus on Biological Process subset of GO
+gobpsets <- go.sets.hs[go.subs.hs$BP]
+
+gobpres <- gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
+
+lapply(gobpres, head)
+```
+
+## Reactome Analysis
+
+We will be using this section to analyze the database with biological molecules and their contribution to pathways/processes
+
+```{r}
+sig_genes <- res[res$padj <= 0.05 & !is.na(res$padj), "symbol"]
+print(paste("Total number of significant genes:", length(sig_genes)))
+```
+
+```{r}
+write.table(sig_genes, file="significant_genes.txt", row.names=FALSE, col.names=FALSE, quote=FALSE)
+```
+
+> Q. What pathway has the most significant "Entities p-value"? 
+
+Cell cycle, Mitotic (with a pvalue of 3.88E-4)
+
+> Do the pathways on this list match the previous KEGG results? 
+
+Partially but for the most part not all, they have some overlapping like cell cycle and DNA replication but others like homologous recombination and oocyte meiosis are found in the KEGG results but not from Reatome Analysis
+
+> What factors could cause differences between the two methods
+
+A factor I could think of is that we are not specifying in the reactome analysis whether we want to look at down versus up regulated pathways, instead with reactome analysis we are looking at how the pathways and certain molecules function together in general. Once you use the website to analyze the data, you can zoom in to see the corresponding molecules to the processes and their respective processes.
+
+![](PathwaysOverview.png)
+
+
