@@ -1,0 +1,172 @@
+---
+title: Class11 Structural Bioinformatics pt 2
+author: "Ani A16647613"
+format: pdf
+---
+
+Alphafold has changed the game for protein structure prediction and allows anyone with sufficient bioinformatics skills to predict the structure of any protein.
+
+Using GoogleColab we ran Alphafold from our notebook, and to be specific we used their AlphaFold2_mmseqs2 version that uses mmseqs rather than HMMer for searching sequences.
+
+The main outputs include a set of **PDB structure** files along ith matching **JSON format files** that tell us how good the resulting models might be.
+Let's begin by loading the PDB structures in Mol*
+
+
+```{r}
+library(bio3d)
+results_dir <- "hivprdimer"
+
+pdb_files <- list.files(path=results_dir,
+                        pattern="*.pdb",
+                        full.names = TRUE)
+
+basename(pdb_files)
+```
+Alignment of files:
+```{r}
+pdbs <- pdbaln(pdb_files, fit=TRUE, exefile="msa")
+```
+
+Now, we download the `BiocManager` file to use specific functions. Downloaded in console.
+
+```{r}
+rd <- rmsd(pdbs, fit=TRUE)
+range(rd)
+
+```
+
+```{r}
+library(pheatmap)
+
+colnames(rd) <- paste0("m",1:5)
+rownames(rd) <- paste0("m",1:5)
+pheatmap(rd)
+```
+`
+
+```{r}
+# Read a reference PDB structure
+pdb <- read.pdb("1hsg")
+pdb$atom
+
+plotb3(pdbs$b[1,], typ="l", lwd=2, sse=pdb)
+points(pdbs$b[2,], typ="l", col="red")
+points(pdbs$b[3,], typ="l", col="blue")
+points(pdbs$b[4,], typ="l", col="darkgreen")
+points(pdbs$b[5,], typ="l", col="orange")
+abline(v=100, col="gray")
+```
+
+Finding the rigid core to improve the superposition:
+```{r}
+core <- core.find(pdbs)
+core.inds <- print(core, vol=0.5)
+```
+```{r}
+xyz <- pdbfit(pdbs, core.inds, outpath="corefit_structures")
+```
+
+```{r}
+rf <- rmsf(xyz)
+
+plotb3(rf, sse=pdb)
+abline(v=100, col="gray", ylab="RMSF")
+```
+
+
+## Predicted Alignment Errors for Domains
+
+Inter domain prediction for model 1 and 2
+```{r}
+library(jsonlite)
+
+# Listing of all PAE JSON files
+pae_files <- list.files(path=results_dir,
+                        pattern=".*model.*\\.json",
+                        full.names = TRUE)
+```
+
+Inter domain prediction for model 1 and 5
+```{r}
+pae1 <- read_json(pae_files[1],simplifyVector = TRUE)
+pae5 <- read_json(pae_files[5],simplifyVector = TRUE)
+
+attributes(pae1)
+```
+
+```{r}
+head(pae1$plddt) 
+```
+
+Now to figure out the max PAE scores of the other models (helps determine model ranks)
+```{r}
+pae1$max_pae
+```
+
+```{r}
+pae5$max_pae
+```
+
+We can now plot the PAE scores using a Bio3d plot function
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)")
+```
+This plot is for model 1.
+
+```{r}
+plot.dmat(pae5$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+This plot is for model 5.
+
+Now, to make model 1 have the same data range as model 5.
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+
+```{r}
+aln_file <- list.files(path=results_dir,
+                       pattern=".a3m$",
+                        full.names = TRUE)
+aln_file
+```
+
+```{r}
+aln <- read.fasta(aln_file[1], to.upper = TRUE)
+```
+
+To determine how many sequences are in the alignment
+```{r}
+dim(aln$ali)
+```
+
+To score and plot residue conservation in the alignment
+```{r}
+sim <- conserv(aln)
+plotb3(sim[1:99], sse=trim.pdb(pdb, chain="A"),
+       ylab="Conservation Score")
+```
+
+To make the active site residues stand out
+```{r}
+con <- consensus(aln, cutoff = 0.9)
+con$seq
+```
+
+For the final visualization of the functionally important sites:
+```{r}
+m1.pdb <- read.pdb(pdb_files[1])
+occ <- vec2resno(c(sim[1:99], sim[1:99]), m1.pdb$atom$resno)
+write.pdb(m1.pdb, o=occ, file="m1_conserv.pdb")
+```
+
+
