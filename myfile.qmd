@@ -1,0 +1,8 @@
+---
+title: "Git First Steps"
+author: Ani A16647613
+format: pdf
+---
+
+Here is the second version with less code
+
