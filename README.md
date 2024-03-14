@@ -4,7 +4,6 @@ Class Work from [W24 from UCSD](https://github.com/agabrelian/bimm143/blob/main/
 
 ## Contents
 
-- Class 4: [Bioinformatics data analysis with R](https://github.com/agabrelian/bimm143/blob/main/class04.pdf)
 - Class 5: [Data exploration and visualization in R](https://github.com/agabrelian/bimm143/blob/main/Lab%205.pdf)
 - Class 6: [R functions and R packages from CRAN and BioConductor](https://github.com/agabrelian/bimm143/blob/main/Lab%206.pdf)
 - Class 7: [Introduction to machine learning for Bioinformatics](https://github.com/agabrelian/bimm143/blob/main/Class07.pdf)
