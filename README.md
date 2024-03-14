@@ -17,3 +17,4 @@ Class Work from [W24 from UCSD](https://github.com/agabrelian/bimm143/blob/main/
 - Class 14: [RNA-Seq analysis mini-project](https://github.com/agabrelian/bimm143/blob/main/Class-14-Pathway-Analysis-lab.pdf)
 - Class 17: [Analyzing sequencing data in the cloud](https://github.com/agabrelian/bimm143/blob/main/Class17.pdf)
 - Class 18: [Mini Project: Investigating Pertussis Resurgence](https://github.com/agabrelian/bimm143/blob/main/Lab-18.pdf)
+- Class 19: [Mini Project: Cancer Mutation Analysis](https://github.com/agabrelian/bimm143/blob/main/lab19.pdf)
